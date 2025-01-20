@@ -6,7 +6,10 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::{Ctx, JSONMap, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{
+    cache::CachedPath, package_json_serde::ImportsExportsSerdeMap, Cache, Ctx, PathUtil,
+    ResolveError, ResolveOptions, Resolver,
+};
 
 #[test]
 fn test_simple() {
@@ -95,15 +98,18 @@ fn shared_resolvers() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    imports_field: JSONMap,
+    imports_field: ImportsExportsSerdeMap<'static>,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn imports_field(value: serde_json::Value) -> JSONMap {
-    let s = serde_json::to_string(&value).unwrap();
-    serde_json::from_str(&s).unwrap()
+fn imports_field(value: serde_json::Value) -> ImportsExportsSerdeMap<'static> {
+    let serde_json::Value::Object(map) = value else {
+        panic!("Expected an object");
+    };
+    // Don't do this at home:
+    let map = Box::leak::<'static>(Box::new(map));
+    ImportsExportsSerdeMap(map)
 }
 
 #[allow(clippy::too_many_lines)]
